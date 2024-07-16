@@ -1,8 +1,8 @@
 # docker-tree
 
-[//]: # ([![GitHub release]&#40;https://img.shields.io/github/release/sergkondr/docker-tree.svg&#41;]&#40;https://github.com/sergkondr/docker-tree/releases/latest&#41;)
-[//]: # ([![Go Report Card]&#40;https://goreportcard.com/badge/github.com/sergkondr/docker-tree&#41;]&#40;https://goreportcard.com/report/github.com/sergkondr/docker-tree&#41;)
-[![License: MIT](https://img.shields.io/badge/License-MIT%202.0-blue.svg)](https://github.com/wagoodman/dive/blob/main/LICENSE)
+[![GitHub release](https://img.shields.io/github/release/sergkondr/docker-tree.svg)](https://github.com/sergkondr/docker-tree/releases/latest)
+[![Go Report Card](https://goreportcard.com/badge/github.com/sergkondr/docker-tree)](https://goreportcard.com/report/github.com/sergkondr/docker-tree)
+[![License: MIT](https://img.shields.io/badge/License-MIT%202.0-blue.svg)](https://github.com/sergkondr/docker-tree/blob/main/LICENSE)
 
 This command shows the directory tree of a Docker image, like the 'tree' command. 
 Provide the image name and an optional tag or digest to view the file structure inside the image. 
