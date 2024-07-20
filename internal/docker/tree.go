@@ -45,8 +45,8 @@ func (n *fileTreeNode) getString(prefix string, showLinks, isFirst, isLast bool)
 	}
 
 	result := fmt.Sprintf("%s%s%s\n", prefix, currentPrefix, name)
-	if showLinks {
-		result = fmt.Sprintf("%s%s%s%s\n", prefix, currentPrefix, name, n.Symlink)
+	if showLinks && n.Symlink != "" {
+		result = fmt.Sprintf("%s%s%s%s%s\n", prefix, currentPrefix, name, link, n.Symlink)
 	}
 
 	for i, child := range n.Children {
@@ -76,7 +76,7 @@ func (n *fileTreeNode) addChild(file *tar.Header) {
 		}
 
 		if file.Typeflag == tar.TypeSymlink {
-			child.Symlink = link + file.Linkname
+			child.Symlink = file.Linkname
 		}
 
 		n.Children = append(n.Children, child)

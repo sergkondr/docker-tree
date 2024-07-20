@@ -7,8 +7,10 @@ import (
 
 func Test_fileTreeNode_String(t *testing.T) {
 	fileNode := fileTreeNode{"file", "", false, nil}
+	fileSymlinkNode := fileTreeNode{"link", "/tmp/file", false, nil}
 	otherFileNode := fileTreeNode{"other_file", "", false, nil}
 	etcNode := fileTreeNode{"etc", "", true, []*fileTreeNode{&fileNode}}
+	binNodeWithSymlink := fileTreeNode{"bin", "", true, []*fileTreeNode{&fileNode, &fileSymlinkNode}}
 
 	type fields struct {
 		Name     string
@@ -35,6 +37,11 @@ func Test_fileTreeNode_String(t *testing.T) {
 			fields: fields{"/", true, []*fileTreeNode{&etcNode, &otherFileNode}},
 			want:   "/\n├── etc/\n│   └── file\n└── other_file\n",
 		},
+		{
+			name:   "get string with symlink",
+			fields: fields{"/", true, []*fileTreeNode{&etcNode, &binNodeWithSymlink}},
+			want:   "/\n├── etc/\n│   └── file\n└── bin/\n    ├── file\n    └── link -> /tmp/file\n",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -43,8 +50,8 @@ func Test_fileTreeNode_String(t *testing.T) {
 				IsDir:    tt.fields.IsDir,
 				Children: tt.fields.Children,
 			}
-			if got := n.getString("", false, true, true); got != tt.want {
-				t.Errorf("String() = %v, want %v", got, tt.want)
+			if got := n.getString("", true, true, true); got != tt.want {
+				t.Errorf("getString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
