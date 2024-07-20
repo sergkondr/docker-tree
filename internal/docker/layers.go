@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -22,6 +23,10 @@ type manifestItem struct {
 	RepoTags []string `json:"RepoTags"`
 	Layers   []string `json:"Layers"`
 }
+
+var (
+	errNotATar = errors.New("not a tar archive")
+)
 
 func checkImageExists(cli command.Cli, imageID string) (bool, error) {
 	images, err := cli.Client().ImageList(context.Background(), image.ListOptions{})
@@ -76,6 +81,21 @@ func getLayersOrderedArrFromImage(imageReader io.ReadCloser) ([]layer, error) {
 					ID:       header.Name,
 					FileTree: files,
 				}
+			} else if strings.HasPrefix(header.Name, "blobs/sha256/") {
+				layerReader := tar.NewReader(tarReader)
+				files, err := getFileTreeFromLayer(layerReader)
+				if errors.Is(err, errNotATar) {
+					continue
+				}
+
+				if err != nil {
+					return nil, fmt.Errorf("error getting files from layer: %w", err)
+				}
+
+				filesInImage[header.Name] = layer{
+					ID:       header.Name,
+					FileTree: files,
+				}
 			}
 		}
 	}
@@ -90,19 +110,15 @@ func getLayersOrderedArrFromImage(imageReader io.ReadCloser) ([]layer, error) {
 
 func getFileTreeFromLayer(layerReader *tar.Reader) (*fileTreeNode, error) {
 	fileTree := &fileTreeNode{"/", true, make([]*fileTreeNode, 0)}
-
 	for {
 		header, err := layerReader.Next()
 		if err == io.EOF {
 			break
 		}
-
 		if err != nil {
-			return nil, fmt.Errorf("error reading tar header: %w", err)
+			return nil, errNotATar
 		}
-
 		fileTree.addChild(header)
 	}
-
 	return fileTree, nil
 }
