@@ -10,9 +10,10 @@ import (
 type GetTreeOpts struct {
 	Cli command.Cli
 
-	ImageID  string
-	Quiet    bool
-	TreeRoot string
+	ImageID   string
+	Quiet     bool
+	ShowLinks bool
+	TreeRoot  string
 }
 
 func GetImageTree(opts GetTreeOpts) (string, error) {
@@ -63,5 +64,5 @@ func GetImageTree(opts GetTreeOpts) (string, error) {
 		return "", fmt.Errorf("there is no such path in the image: %s", opts.TreeRoot)
 	}
 
-	return node.String(), nil
+	return node.getString("", opts.ShowLinks, true, true), nil
 }

@@ -66,7 +66,7 @@ func getLayersOrderedArrFromImage(imageReader io.ReadCloser) ([]layer, error) {
 			return nil, fmt.Errorf("error reading tar header: %w", err)
 		}
 
-		if header.Typeflag == tar.TypeReg {
+		if header.Typeflag == tar.TypeReg || header.Typeflag == tar.TypeSymlink {
 			if header.Name == manifestFileName {
 				fileReader, err := io.ReadAll(tarReader)
 				if err != nil {
@@ -115,7 +115,12 @@ func getLayersOrderedArrFromImage(imageReader io.ReadCloser) ([]layer, error) {
 }
 
 func getFileTreeFromLayer(layerReader *tar.Reader) (*fileTreeNode, error) {
-	fileTree := &fileTreeNode{"/", true, make([]*fileTreeNode, 0)}
+	fileTree := &fileTreeNode{
+		Name:     "/",
+		Symlink:  "",
+		IsDir:    true,
+		Children: make([]*fileTreeNode, 0),
+	}
 	for {
 		header, err := layerReader.Next()
 		if err == io.EOF {

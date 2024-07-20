@@ -20,7 +20,8 @@ func main() {
 	plugin.Run(
 		func(dockerCli command.Cli) *cobra.Command {
 			var (
-				quiet bool
+				quiet     bool
+				showLinks bool
 			)
 
 			cmd := &cobra.Command{
@@ -47,10 +48,11 @@ You can also specify a directory to see the file tree relative to this directory
 					}
 
 					treeStrings, err := docker.GetImageTree(docker.GetTreeOpts{
-						Cli:      dockerCli,
-						ImageID:  imageID,
-						Quiet:    quiet,
-						TreeRoot: treeRoot,
+						Cli:       dockerCli,
+						ImageID:   imageID,
+						Quiet:     quiet,
+						ShowLinks: showLinks,
+						TreeRoot:  treeRoot,
 					})
 					if err != nil {
 						fmt.Fprintf(dockerCli.Err(), "can't get image tree: %s\n", err)
@@ -63,6 +65,7 @@ You can also specify a directory to see the file tree relative to this directory
 
 			flags := cmd.Flags()
 			flags.BoolVarP(&quiet, "quiet", "q", false, "Suppress verbose output")
+			flags.BoolVarP(&showLinks, "links", "l", false, "Show symlinks destination")
 
 			cmd.AddCommand()
 			return cmd
