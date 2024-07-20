@@ -16,7 +16,9 @@ type GetTreeOpts struct {
 }
 
 func GetImageTree(opts GetTreeOpts) (string, error) {
-	imageExists, err := checkImageExists(opts.Cli, opts.ImageID)
+	ctx := context.Background()
+
+	imageExists, err := checkImageExists(ctx, opts.Cli, opts.ImageID)
 	if err != nil {
 		return "", fmt.Errorf("can't check if image exists: %w", err)
 	}
@@ -36,7 +38,7 @@ func GetImageTree(opts GetTreeOpts) (string, error) {
 		fmt.Fprintf(opts.Cli.Out(), "precessing image: %s\n", opts.ImageID)
 	}
 
-	imageReader, err := opts.Cli.Client().ImageSave(context.Background(), []string{opts.ImageID})
+	imageReader, err := opts.Cli.Client().ImageSave(ctx, []string{opts.ImageID})
 	if err != nil {
 		return "", fmt.Errorf("error saving image: %v", err)
 	}
