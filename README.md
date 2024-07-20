@@ -1,8 +1,9 @@
 # docker-tree
 
+[![License: MIT](https://img.shields.io/badge/License-MIT%202.0-blue.svg)](https://github.com/sergkondr/docker-tree/blob/main/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/sergkondr/docker-tree.svg)](https://github.com/sergkondr/docker-tree/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sergkondr/docker-tree)](https://goreportcard.com/report/github.com/sergkondr/docker-tree)
-[![License: MIT](https://img.shields.io/badge/License-MIT%202.0-blue.svg)](https://github.com/sergkondr/docker-tree/blob/main/LICENSE)
+
 
 This command shows the directory tree of a Docker image, like the 'tree' command. 
 Provide the image name and an optional tag or digest to view the file structure inside the image. 
@@ -13,11 +14,12 @@ Think of this app mainly as an attempt to understand how Docker images work and 
 
 ### Install
 ```
-cp ./docker-tree ~/.docker/cli-plugins/docker-tree
+mv ./docker-tree ~/.docker/cli-plugins/docker-tree
 ```
 
 ### Usage
 ```shell
+# Absent image will be pulled automatically
 ➜ docker tree alpine:3.20 /etc/ssl
 3.20: Pulling from library/alpine
 a258b2a6b59a: Pull complete
@@ -33,4 +35,17 @@ ssl/
 ├── openssl.cnf
 ├── openssl.cnf.dist
 └── private/
+
+# Show file tree with symlinks
+➜ docker tree -l alpine:3.20 | head
+precessing image: alpine:3.20
+/
+├── bin/
+│   ├── arch -> /bin/busybox
+│   ├── ash -> /bin/busybox
+│   ├── base64 -> /bin/busybox
+│   ├── bbconfig -> /bin/busybox
+│   ├── busybox
+│   ├── cat -> /bin/busybox
+│   ├── chattr -> /bin/busybox
 ```

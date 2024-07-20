@@ -13,21 +13,19 @@ const (
 	branch = "│   "
 	middle = "├── "
 	last   = "└── "
+	link   = " -> "
 
 	delFilePrefix = ".wh."
 )
 
 type fileTreeNode struct {
 	Name     string
+	Symlink  string
 	IsDir    bool
 	Children []*fileTreeNode
 }
 
-func (n *fileTreeNode) String() string {
-	return n.getString("", true, true)
-}
-
-func (n *fileTreeNode) getString(prefix string, isFirst, isLast bool) string {
+func (n *fileTreeNode) getString(prefix string, showLinks, isFirst, isLast bool) string {
 	passPrefix := prefix
 	currentPrefix := empty
 
@@ -47,9 +45,12 @@ func (n *fileTreeNode) getString(prefix string, isFirst, isLast bool) string {
 	}
 
 	result := fmt.Sprintf("%s%s%s\n", prefix, currentPrefix, name)
+	if showLinks && n.Symlink != "" {
+		result = fmt.Sprintf("%s%s%s%s%s\n", prefix, currentPrefix, name, link, n.Symlink)
+	}
 
 	for i, child := range n.Children {
-		result += child.getString(passPrefix, false, i == len(n.Children)-1)
+		result += child.getString(passPrefix, showLinks, false, i == len(n.Children)-1)
 	}
 
 	return result
@@ -73,6 +74,11 @@ func (n *fileTreeNode) addChild(file *tar.Header) {
 			Name:  dir,
 			IsDir: file.Typeflag == tar.TypeDir,
 		}
+
+		if file.Typeflag == tar.TypeSymlink {
+			child.Symlink = file.Linkname
+		}
+
 		n.Children = append(n.Children, child)
 	}
 }
@@ -110,10 +116,15 @@ func mergeFileTrees(original, updated *fileTreeNode) (*fileTreeNode, error) {
 		return updated, nil
 	}
 
-	merged := &fileTreeNode{original.Name, original.IsDir, original.Children}
+	merged := &fileTreeNode{
+		Name:     original.Name,
+		Symlink:  "",
+		IsDir:    original.IsDir,
+		Children: original.Children,
+	}
 
 	for _, updatedChild := range updated.Children {
-		// to avoid "/./" in tree for distroless images
+		// to avoid "/./" in tree for some images
 		if updatedChild.Name == "." {
 			continue
 		}
