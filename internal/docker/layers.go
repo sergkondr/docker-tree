@@ -3,9 +3,9 @@ package docker
 import (
 	"archive/tar"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
-	"slices"
 	"strings"
 
 	"github.com/docker/cli/cli/command"
@@ -15,6 +15,12 @@ import (
 type layer struct {
 	ID       string
 	FileTree *fileTreeNode
+}
+
+type manifestItem struct {
+	Config   string   `json:"Config"`
+	RepoTags []string `json:"RepoTags"`
+	Layers   []string `json:"Layers"`
 }
 
 func checkImageExists(cli command.Cli, imageID string) (bool, error) {
@@ -34,29 +40,11 @@ func checkImageExists(cli command.Cli, imageID string) (bool, error) {
 	return false, nil
 }
 
-func getLayersOrderedArrFromImage(cli command.Cli, imageID string) ([]string, error) {
-	imageInspect, _, err := cli.Client().ImageInspectWithRaw(context.Background(), imageID)
-	if err != nil {
-		return nil, fmt.Errorf("can't inspect image: %w", err)
-	}
-
-	layersOrderedArr := make([]string, len(imageInspect.RootFS.Layers))
-	for i, layer := range imageInspect.RootFS.Layers {
-		layersOrderedArr[i] = fmt.Sprintf("%s", strings.Split(layer, ":")[1])
-	}
-
-	return layersOrderedArr, nil
-}
-
-func readLayers(cli command.Cli, imageID string, layersOrderedArr []string) (map[string]layer, error) {
-	imageReader, err := cli.Client().ImageSave(context.Background(), []string{imageID})
-	if err != nil {
-		return nil, fmt.Errorf("error saving image: %v", err)
-	}
-	defer imageReader.Close()
-
+func getLayersOrderedArrFromImage(imageReader io.ReadCloser) ([]layer, error) {
 	tarReader := tar.NewReader(imageReader)
-	filesInImage := make(map[string]layer, len(layersOrderedArr))
+	manifest := make([]manifestItem, 0)
+	filesInImage := make(map[string]layer, 0)
+
 	for {
 		header, err := tarReader.Next()
 		if err == io.EOF {
@@ -67,25 +55,37 @@ func readLayers(cli command.Cli, imageID string, layersOrderedArr []string) (map
 			return nil, fmt.Errorf("error reading tar header: %w", err)
 		}
 
-		fileName := header.Name
-		if header.Typeflag == tar.TypeReg { //|| header.Typeflag == tar.TypeSymlink {
-			fName := strings.TrimPrefix(fileName, "blobs/sha256/")
-			if slices.Contains(layersOrderedArr, fName) {
+		if header.Typeflag == tar.TypeReg {
+			if header.Name == "manifest.json" {
+				fileReader, err := io.ReadAll(tarReader)
+				if err != nil {
+					return nil, fmt.Errorf("error reading tar content: %w", err)
+				}
+
+				if err = json.Unmarshal(fileReader, &manifest); err != nil {
+					return nil, fmt.Errorf("error unmarshalling manifest: %w", err)
+				}
+			} else if strings.HasSuffix(header.Name, "layer.tar") {
 				layerReader := tar.NewReader(tarReader)
 				files, err := getFileTreeFromLayer(layerReader)
 				if err != nil {
 					return nil, fmt.Errorf("error getting files from layer: %w", err)
 				}
 
-				filesInImage[fName] = layer{
-					ID:       fileName,
+				filesInImage[header.Name] = layer{
+					ID:       header.Name,
 					FileTree: files,
 				}
 			}
 		}
 	}
 
-	return filesInImage, nil
+	orderedLayersArr := make([]layer, len(manifest[0].Layers))
+	for i, layer := range manifest[0].Layers {
+		orderedLayersArr[i] = filesInImage[layer]
+	}
+
+	return orderedLayersArr, nil
 }
 
 func getFileTreeFromLayer(layerReader *tar.Reader) (*fileTreeNode, error) {

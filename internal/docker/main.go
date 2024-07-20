@@ -1,13 +1,15 @@
 package docker
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/docker/cli/cli/command"
 )
 
 type GetTreeOpts struct {
-	Cli      command.Cli
+	Cli command.Cli
+
 	ImageID  string
 	Quiet    bool
 	TreeRoot string
@@ -30,25 +32,33 @@ func GetImageTree(opts GetTreeOpts) (string, error) {
 		}
 	}
 
-	layersOrderedArr, err := getLayersOrderedArrFromImage(opts.Cli, opts.ImageID)
+	if !opts.Quiet {
+		fmt.Fprintf(opts.Cli.Out(), "precessing image: %s\n", opts.ImageID)
+	}
+
+	imageReader, err := opts.Cli.Client().ImageSave(context.Background(), []string{opts.ImageID})
+	if err != nil {
+		return "", fmt.Errorf("error saving image: %v", err)
+	}
+	defer imageReader.Close()
+
+	layersOrderedArr, err := getLayersOrderedArrFromImage(imageReader)
 	if err != nil {
 		return "", fmt.Errorf("can't get layersOrderedArr: %w", err)
 	}
 
-	layerMap, err := readLayers(opts.Cli, opts.ImageID, layersOrderedArr)
-	if err != nil {
-		return "", fmt.Errorf("can't read layer: %w", err)
-	}
-
-	originalLayer := layerMap[layersOrderedArr[0]].FileTree
+	originalLayer := layersOrderedArr[0].FileTree
 	for i := 1; i <= len(layersOrderedArr)-1; i++ {
-		updatedLayer := layerMap[layersOrderedArr[i]].FileTree
-		originalLayer, _ = mergeFileTrees(originalLayer, updatedLayer)
+		updatedLayer := layersOrderedArr[i].FileTree
+		originalLayer, err = mergeFileTrees(originalLayer, updatedLayer)
+		if err != nil {
+			return "", fmt.Errorf("can't merge layers: %w", err)
+		}
 	}
 
 	node := originalLayer.findNode(opts.TreeRoot)
 	if node == nil {
-		return "", fmt.Errorf("tree is no such path in the image: %s", opts.TreeRoot)
+		return "", fmt.Errorf("there is no such path in the image: %s", opts.TreeRoot)
 	}
 
 	return node.String(), nil
