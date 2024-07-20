@@ -18,7 +18,7 @@ mv ./docker-tree ~/.docker/cli-plugins/docker-tree
 
 ### Usage
 ```shell
-# pull absent image and show file tree
+# Absent image will be pulled automatically
 ➜ docker tree alpine:3.20 /etc/ssl
 3.20: Pulling from library/alpine
 a258b2a6b59a: Pull complete
@@ -35,8 +35,8 @@ ssl/
 ├── openssl.cnf.dist
 └── private/
 
-# do not pull image and show file tree with symlinks
-➜ docker tree -l alpine:3.20 | head -10
+# Show file tree with symlinks
+➜ docker tree -l alpine:3.20 | head
 precessing image: alpine:3.20
 /
 ├── bin/
