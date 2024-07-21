@@ -53,6 +53,7 @@ func checkImageExists(ctx context.Context, cli command.Cli, imageID string) (boo
 
 func getLayersOrderedArrFromImage(imageReader io.ReadCloser) ([]layer, error) {
 	tarReader := tar.NewReader(imageReader)
+
 	manifest := make([]manifestItem, 1)
 	layerInfoMap := make(map[string]layer, 1)
 
@@ -76,24 +77,12 @@ func getLayersOrderedArrFromImage(imageReader io.ReadCloser) ([]layer, error) {
 				if err = json.Unmarshal(fileReader, &manifest); err != nil {
 					return nil, fmt.Errorf("error unmarshalling manifest: %w", err)
 				}
-			} else if strings.HasSuffix(header.Name, layerTarSuffix) {
-				layerReader := tar.NewReader(tarReader)
-				files, err := getFileTreeFromLayer(layerReader)
-				if err != nil {
-					return nil, fmt.Errorf("error getting files from layer: %w", err)
-				}
-
-				layerInfoMap[header.Name] = layer{
-					ID:       header.Name,
-					FileTree: files,
-				}
-			} else if strings.HasPrefix(header.Name, blobsPrefix) {
+			} else if strings.HasSuffix(header.Name, layerTarSuffix) || strings.HasPrefix(header.Name, blobsPrefix) {
 				layerReader := tar.NewReader(tarReader)
 				files, err := getFileTreeFromLayer(layerReader)
 				if errors.Is(err, errNotATar) {
 					continue
 				}
-
 				if err != nil {
 					return nil, fmt.Errorf("error getting files from layer: %w", err)
 				}
