@@ -58,7 +58,6 @@ func (n *fileTreeNode) getString(prefix string, showLinks, isFirst, isLast bool)
 
 func (n *fileTreeNode) addChild(file *tar.Header) {
 	pathDirs := strings.Split(file.Name, "/")
-
 	for _, dir := range pathDirs {
 		if dir == "" {
 			continue
@@ -71,12 +70,9 @@ func (n *fileTreeNode) addChild(file *tar.Header) {
 		}
 
 		child := &fileTreeNode{
-			Name:  dir,
-			IsDir: file.Typeflag == tar.TypeDir,
-		}
-
-		if file.Typeflag == tar.TypeSymlink {
-			child.Symlink = file.Linkname
+			Name:    dir,
+			IsDir:   file.Typeflag == tar.TypeDir,
+			Symlink: file.Linkname,
 		}
 
 		n.Children = append(n.Children, child)
@@ -89,6 +85,7 @@ func (n *fileTreeNode) findChild(name string) int {
 			return i
 		}
 	}
+
 	return -1
 }
 
@@ -105,6 +102,7 @@ func (n *fileTreeNode) findNode(path string) *fileTreeNode {
 		}
 		n = n.Children[childIndex]
 	}
+
 	return n
 }
 
@@ -131,15 +129,13 @@ func mergeFileTrees(original, updated *fileTreeNode) (*fileTreeNode, error) {
 
 		if strings.HasPrefix(updatedChild.Name, delFilePrefix) {
 			updatedChild.Name = strings.TrimPrefix(updatedChild.Name, delFilePrefix)
-			err := original.deleteNode(updatedChild)
-			if err != nil {
+			if err := original.deleteNode(updatedChild); err != nil {
 				return nil, fmt.Errorf("error deleting file %s: %w", updatedChild.Name, err)
 			}
 			continue
 		}
 
 		childIndex := merged.findChild(updatedChild.Name)
-
 		if childIndex == -1 {
 			merged.Children = append(merged.Children, updatedChild)
 			sort.Slice(merged.Children, func(i, j int) bool {
