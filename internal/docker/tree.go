@@ -25,7 +25,17 @@ type fileTreeNode struct {
 	Children []*fileTreeNode
 }
 
-func (n *fileTreeNode) getString(prefix string, showLinks, isFirst, isLast bool) string {
+type getStringOpts struct {
+	showLinks bool
+	depth     int
+}
+
+func (n *fileTreeNode) getString(prefix string, opts getStringOpts, isFirst, isLast bool) string {
+	opts.depth--
+	if opts.depth == -1 {
+		return empty
+	}
+
 	passPrefix := prefix
 	currentPrefix := empty
 
@@ -45,12 +55,12 @@ func (n *fileTreeNode) getString(prefix string, showLinks, isFirst, isLast bool)
 	}
 
 	result := fmt.Sprintf("%s%s%s\n", prefix, currentPrefix, name)
-	if showLinks && n.Symlink != "" {
+	if opts.showLinks && n.Symlink != "" {
 		result = fmt.Sprintf("%s%s%s%s%s\n", prefix, currentPrefix, name, link, n.Symlink)
 	}
 
 	for i, child := range n.Children {
-		result += child.getString(passPrefix, showLinks, false, i == len(n.Children)-1)
+		result += child.getString(passPrefix, opts, false, i == len(n.Children)-1)
 	}
 
 	return result

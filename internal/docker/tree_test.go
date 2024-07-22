@@ -50,7 +50,13 @@ func Test_fileTreeNode_String(t *testing.T) {
 				IsDir:    tt.fields.IsDir,
 				Children: tt.fields.Children,
 			}
-			if got := n.getString("", true, true, true); got != tt.want {
+
+			o := getStringOpts{
+				showLinks: true,
+				depth:     9999999,
+			}
+
+			if got := n.getString("", o, true, true); got != tt.want {
 				t.Errorf("getString() = %v, want %v", got, tt.want)
 			}
 		})
