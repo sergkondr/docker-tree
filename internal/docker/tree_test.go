@@ -20,27 +20,44 @@ func Test_fileTreeNode_String(t *testing.T) {
 	tests := []struct {
 		name   string
 		fields fields
+		opts   getStringOpts
 		want   string
 	}{
 		{
 			name:   "get string of only root node",
 			fields: fields{"/", true, nil},
+			opts:   getStringOpts{showLinks: false, depth: 99999},
 			want:   "/\n",
 		},
 		{
 			name:   "get string of /etc/file",
 			fields: fields{"/", true, []*fileTreeNode{&etcNode}},
+			opts:   getStringOpts{showLinks: false, depth: 99999},
 			want:   "/\n└── etc/\n    └── file\n",
 		},
 		{
 			name:   "get string of /etc/file + /other_file",
 			fields: fields{"/", true, []*fileTreeNode{&etcNode, &otherFileNode}},
+			opts:   getStringOpts{showLinks: false, depth: 99999},
 			want:   "/\n├── etc/\n│   └── file\n└── other_file\n",
 		},
 		{
 			name:   "get string with symlink",
 			fields: fields{"/", true, []*fileTreeNode{&etcNode, &binNodeWithSymlink}},
+			opts:   getStringOpts{showLinks: true, depth: 99999},
 			want:   "/\n├── etc/\n│   └── file\n└── bin/\n    ├── file\n    └── link -> /tmp/file\n",
+		},
+		{
+			name:   "get string with depth = 1",
+			fields: fields{"/", true, []*fileTreeNode{&etcNode, &binNodeWithSymlink}},
+			opts:   getStringOpts{showLinks: false, depth: 2}, // we use depth == 2 because we want it to handle root + one more level of nesting
+			want:   "/\n├── etc/\n└── bin/\n",
+		},
+		{
+			name:   "get string with depth = 2",
+			fields: fields{"/", true, []*fileTreeNode{&etcNode, &binNodeWithSymlink}},
+			opts:   getStringOpts{showLinks: false, depth: 3},
+			want:   "/\n├── etc/\n│   └── file\n└── bin/\n    ├── file\n    └── link\n",
 		},
 	}
 	for _, tt := range tests {
@@ -51,12 +68,7 @@ func Test_fileTreeNode_String(t *testing.T) {
 				Children: tt.fields.Children,
 			}
 
-			o := getStringOpts{
-				showLinks: true,
-				depth:     9999999,
-			}
-
-			if got := n.getString("", o, true, true); got != tt.want {
+			if got := n.getString("", tt.opts, true, true); got != tt.want {
 				t.Errorf("getString() = %v, want %v", got, tt.want)
 			}
 		})
