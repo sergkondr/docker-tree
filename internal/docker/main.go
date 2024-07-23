@@ -37,7 +37,7 @@ func GetImageTree(opts GetTreeOpts) (string, error) {
 	}
 
 	if !opts.Quiet {
-		fmt.Fprintf(opts.Cli.Out(), "precessing image: %s\n", opts.ImageID)
+		fmt.Fprintf(opts.Cli.Out(), "processing image: %s\n", opts.ImageID)
 	}
 
 	imageReader, err := opts.Cli.Client().ImageSave(ctx, []string{opts.ImageID})
