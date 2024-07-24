@@ -15,7 +15,8 @@ const (
 	last   = "└── "
 	link   = " -> "
 
-	delFilePrefix = ".wh."
+	whiteoutFilePrefix = ".wh."
+	whiteoutDirPrefix  = ".wh..wh..opq"
 )
 
 type fileTreeNode struct {
@@ -137,8 +138,12 @@ func mergeFileTrees(original, updated *fileTreeNode) (*fileTreeNode, error) {
 			continue
 		}
 
-		if strings.HasPrefix(updatedChild.Name, delFilePrefix) {
-			updatedChild.Name = strings.TrimPrefix(updatedChild.Name, delFilePrefix)
+		if strings.HasPrefix(updatedChild.Name, whiteoutDirPrefix) {
+
+		}
+
+		if strings.HasPrefix(updatedChild.Name, whiteoutFilePrefix) {
+			updatedChild.Name = strings.TrimPrefix(updatedChild.Name, whiteoutFilePrefix)
 			if err := original.deleteNode(updatedChild); err != nil {
 				return nil, fmt.Errorf("error deleting file %s: %w", updatedChild.Name, err)
 			}
