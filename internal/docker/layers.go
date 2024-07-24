@@ -112,7 +112,6 @@ func getFileTreeFromLayer(layerReader *tar.Reader) (*fileTreeNode, error) {
 	}
 	for {
 		header, err := layerReader.Next()
-		//fmt.Println("HEADER:", header)
 		if err == io.EOF {
 			break
 		}
@@ -120,11 +119,9 @@ func getFileTreeFromLayer(layerReader *tar.Reader) (*fileTreeNode, error) {
 			return nil, errNotATar
 		}
 
-		if strings.HasSuffix(header.Name, whiteoutDirPrefix) {
-			continue
+		if !strings.HasSuffix(header.Name, whiteoutDirPrefix) {
+			fileTree.addChild(header)
 		}
-
-		fileTree.addChild(header)
 	}
 	return fileTree, nil
 }
