@@ -21,11 +21,7 @@ mv ./docker-tree ~/.docker/cli-plugins/docker-tree
 ```shell
 # Absent image will be pulled automatically
 ➜ docker tree alpine:3.20 /etc/ssl
-3.20: Pulling from library/alpine
-a258b2a6b59a: Pull complete
-Digest: sha256:b89d9c93e9ed3597455c90a0b88a8bbb5cb7188438f70953fede212a0c4394e0
-Status: Downloaded newer image for alpine:3.20
-docker.io/library/alpine:3.20
+processing image: alpine:3.20
 ssl/
 ├── cert.pem
 ├── certs/
@@ -35,17 +31,4 @@ ssl/
 ├── openssl.cnf
 ├── openssl.cnf.dist
 └── private/
-
-# Show file tree with symlinks
-➜ docker tree -l alpine:3.20 | head
-precessing image: alpine:3.20
-/
-├── bin/
-│   ├── arch -> /bin/busybox
-│   ├── ash -> /bin/busybox
-│   ├── base64 -> /bin/busybox
-│   ├── bbconfig -> /bin/busybox
-│   ├── busybox
-│   ├── cat -> /bin/busybox
-│   ├── chattr -> /bin/busybox
 ```

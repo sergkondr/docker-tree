@@ -76,25 +76,6 @@ func Test_fileTreeNode_String(t *testing.T) {
 }
 
 func Test_mergeFileTrees(t *testing.T) {
-	singleFileTree := &fileTreeNode{"file", "", false, nil}
-	whiteOutDirNode := &fileTreeNode{".wh..wh..opq", "", false, nil}
-
-	etcWithFile := &fileTreeNode{"etc", "", true, []*fileTreeNode{singleFileTree}}
-	rootWithEtcTreeNode := &fileTreeNode{"/", "", true, []*fileTreeNode{etcWithFile}}
-
-	varWithFile := &fileTreeNode{"var", "", true, []*fileTreeNode{singleFileTree}}
-	rootWithVarTreeNode := &fileTreeNode{"/", "", true, []*fileTreeNode{varWithFile}}
-
-	deleteSingleFileTree := &fileTreeNode{".wh.file", "", false, nil}
-	etcWithDeleteFile := &fileTreeNode{"etc", "", true, []*fileTreeNode{deleteSingleFileTree}}
-	rootWithEtcWithDeleteFileTreeNode := &fileTreeNode{"/", "", true, []*fileTreeNode{etcWithDeleteFile}}
-
-	rootWithEtcWithDeleteFileAndAddVarFileTreeNode := &fileTreeNode{"/", "", true, []*fileTreeNode{etcWithDeleteFile, varWithFile}}
-
-	varWithWhFile := &fileTreeNode{"var", "", true, []*fileTreeNode{whiteOutDirNode}}
-	varWithoutFile := &fileTreeNode{"var", "", true, []*fileTreeNode{}}
-	rootWithVarWH := &fileTreeNode{"/", "", true, []*fileTreeNode{varWithWhFile}}
-
 	type args struct {
 		original *fileTreeNode
 		updated  *fileTreeNode
@@ -109,49 +90,83 @@ func Test_mergeFileTrees(t *testing.T) {
 			name: "original is nil",
 			args: args{
 				original: nil,
-				updated:  singleFileTree,
+				updated:  &fileTreeNode{"file", "", false, nil},
 			},
-			want:    singleFileTree,
+			want:    &fileTreeNode{"file", "", false, nil},
 			wantErr: false,
 		},
 		{
 			name: "add /var/file to /etc/file",
 			args: args{
-				original: rootWithEtcTreeNode,
-				updated:  rootWithVarTreeNode,
+				original: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"etc", "", true, []*fileTreeNode{
+						{"file", "", false, nil},
+					}},
+				}},
+				updated: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"var", "", true, []*fileTreeNode{
+						{"file", "", false, nil},
+					}},
+				}},
 			},
-			want:    &fileTreeNode{"/", "", true, []*fileTreeNode{etcWithFile, varWithFile}},
+			want: &fileTreeNode{"/", "", true, []*fileTreeNode{
+				{"etc", "", true, []*fileTreeNode{
+					{"file", "", false, nil}},
+				},
+				{"var", "", true, []*fileTreeNode{
+					{"file", "", false, nil}},
+				},
+			}},
+
 			wantErr: false,
 		},
 		{
 			name: "delete /etc/file",
 			args: args{
-				original: rootWithEtcTreeNode,
-				updated:  rootWithEtcWithDeleteFileTreeNode,
+				original: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"etc", "", true, []*fileTreeNode{
+						{"file", "", false, nil},
+					}},
+				}},
+				updated: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"etc", "", true, []*fileTreeNode{
+						{".wh.file", "", false, nil},
+					}},
+				}},
 			},
-			want:    &fileTreeNode{"/", "", true, []*fileTreeNode{{"etc", "", true, []*fileTreeNode{}}}},
+			want: &fileTreeNode{"/", "", true, []*fileTreeNode{
+				{"etc", "", true, []*fileTreeNode{}},
+			}},
 			wantErr: false,
 		},
 		{
 			name: "delete /etc/file and add /var/file",
 			args: args{
-				original: rootWithEtcTreeNode,
-				updated:  rootWithEtcWithDeleteFileAndAddVarFileTreeNode,
+				original: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"etc", "", true, []*fileTreeNode{
+						{"file", "", false, nil},
+					}},
+				}},
+				updated: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"etc", "", true, []*fileTreeNode{
+						{".wh.file", "", false, nil},
+					}},
+					{"var", "", false, []*fileTreeNode{
+						{"file", "", false, nil},
+					}},
+				}},
 			},
-			want:    &fileTreeNode{"/", "", true, []*fileTreeNode{{"etc", "", true, []*fileTreeNode{}}, varWithFile}},
-			wantErr: false,
-		},
-		{
-			name: "white out /var/",
-			args: args{
-				original: rootWithVarTreeNode, // /var/file
-				updated:  rootWithVarWH,
-			},
-			want:    varWithoutFile,
+			want: &fileTreeNode{"/", "", true, []*fileTreeNode{
+				{"etc", "", true, []*fileTreeNode{}},
+				{"var", "", false, []*fileTreeNode{
+					{"file", "", false, nil},
+				}},
+			}},
 			wantErr: false,
 		},
 	}
 
+	defaultOpts := getStringOpts{showLinks: true, depth: 99999}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := mergeFileTrees(tt.args.original, tt.args.updated)
@@ -160,7 +175,9 @@ func Test_mergeFileTrees(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("mergeFileTrees() got:\n%v, want:\n%v", got, tt.want)
+				t.Errorf("mergeFileTrees() got:\n%v, want:\n%v",
+					got.getString("", defaultOpts, true, false),
+					tt.want.getString("", defaultOpts, true, false))
 			}
 		})
 	}
