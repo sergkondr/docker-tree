@@ -20,27 +20,44 @@ func Test_fileTreeNode_String(t *testing.T) {
 	tests := []struct {
 		name   string
 		fields fields
+		opts   getStringOpts
 		want   string
 	}{
 		{
 			name:   "get string of only root node",
 			fields: fields{"/", true, nil},
+			opts:   getStringOpts{showLinks: false, depth: 99999},
 			want:   "/\n",
 		},
 		{
 			name:   "get string of /etc/file",
 			fields: fields{"/", true, []*fileTreeNode{&etcNode}},
+			opts:   getStringOpts{showLinks: false, depth: 99999},
 			want:   "/\n└── etc/\n    └── file\n",
 		},
 		{
 			name:   "get string of /etc/file + /other_file",
 			fields: fields{"/", true, []*fileTreeNode{&etcNode, &otherFileNode}},
+			opts:   getStringOpts{showLinks: false, depth: 99999},
 			want:   "/\n├── etc/\n│   └── file\n└── other_file\n",
 		},
 		{
 			name:   "get string with symlink",
 			fields: fields{"/", true, []*fileTreeNode{&etcNode, &binNodeWithSymlink}},
+			opts:   getStringOpts{showLinks: true, depth: 99999},
 			want:   "/\n├── etc/\n│   └── file\n└── bin/\n    ├── file\n    └── link -> /tmp/file\n",
+		},
+		{
+			name:   "get string with depth = 1",
+			fields: fields{"/", true, []*fileTreeNode{&etcNode, &binNodeWithSymlink}},
+			opts:   getStringOpts{showLinks: false, depth: 2}, // we use depth == 2 because we want it to handle root + one more level of nesting
+			want:   "/\n├── etc/\n└── bin/\n",
+		},
+		{
+			name:   "get string with depth = 2",
+			fields: fields{"/", true, []*fileTreeNode{&etcNode, &binNodeWithSymlink}},
+			opts:   getStringOpts{showLinks: false, depth: 3},
+			want:   "/\n├── etc/\n│   └── file\n└── bin/\n    ├── file\n    └── link\n",
 		},
 	}
 	for _, tt := range tests {
@@ -50,7 +67,8 @@ func Test_fileTreeNode_String(t *testing.T) {
 				IsDir:    tt.fields.IsDir,
 				Children: tt.fields.Children,
 			}
-			if got := n.getString("", true, true, true); got != tt.want {
+
+			if got := n.getString("", tt.opts, true, true); got != tt.want {
 				t.Errorf("getString() = %v, want %v", got, tt.want)
 			}
 		})
@@ -58,20 +76,6 @@ func Test_fileTreeNode_String(t *testing.T) {
 }
 
 func Test_mergeFileTrees(t *testing.T) {
-	singleFileTree := &fileTreeNode{"file", "", false, nil}
-
-	etcWithFile := &fileTreeNode{"etc", "", true, []*fileTreeNode{singleFileTree}}
-	rootWithEtcTreeNode := &fileTreeNode{"/", "", true, []*fileTreeNode{etcWithFile}}
-
-	varWithFile := &fileTreeNode{"var", "", true, []*fileTreeNode{singleFileTree}}
-	rootWithVarTreeNode := &fileTreeNode{"/", "", true, []*fileTreeNode{varWithFile}}
-
-	deleteSingleFileTree := &fileTreeNode{".wh.file", "", false, nil}
-	etcWithDeleteFile := &fileTreeNode{"etc", "", true, []*fileTreeNode{deleteSingleFileTree}}
-	rootWithEtcWithDeleteFileTreeNode := &fileTreeNode{"/", "", true, []*fileTreeNode{etcWithDeleteFile}}
-
-	rootWithEtcWithDeleteFileAndAddVarFileTreeNode := &fileTreeNode{"/", "", true, []*fileTreeNode{etcWithDeleteFile, varWithFile}}
-
 	type args struct {
 		original *fileTreeNode
 		updated  *fileTreeNode
@@ -86,40 +90,83 @@ func Test_mergeFileTrees(t *testing.T) {
 			name: "original is nil",
 			args: args{
 				original: nil,
-				updated:  singleFileTree,
+				updated:  &fileTreeNode{"file", "", false, nil},
 			},
-			want:    singleFileTree,
+			want:    &fileTreeNode{"file", "", false, nil},
 			wantErr: false,
 		},
 		{
 			name: "add /var/file to /etc/file",
 			args: args{
-				original: rootWithEtcTreeNode,
-				updated:  rootWithVarTreeNode,
+				original: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"etc", "", true, []*fileTreeNode{
+						{"file", "", false, nil},
+					}},
+				}},
+				updated: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"var", "", true, []*fileTreeNode{
+						{"file", "", false, nil},
+					}},
+				}},
 			},
-			want:    &fileTreeNode{"/", "", true, []*fileTreeNode{etcWithFile, varWithFile}},
+			want: &fileTreeNode{"/", "", true, []*fileTreeNode{
+				{"etc", "", true, []*fileTreeNode{
+					{"file", "", false, nil}},
+				},
+				{"var", "", true, []*fileTreeNode{
+					{"file", "", false, nil}},
+				},
+			}},
+
 			wantErr: false,
 		},
 		{
 			name: "delete /etc/file",
 			args: args{
-				original: rootWithEtcTreeNode,
-				updated:  rootWithEtcWithDeleteFileTreeNode,
+				original: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"etc", "", true, []*fileTreeNode{
+						{"file", "", false, nil},
+					}},
+				}},
+				updated: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"etc", "", true, []*fileTreeNode{
+						{".wh.file", "", false, nil},
+					}},
+				}},
 			},
-			want:    &fileTreeNode{"/", "", true, []*fileTreeNode{{"etc", "", true, []*fileTreeNode{}}}},
+			want: &fileTreeNode{"/", "", true, []*fileTreeNode{
+				{"etc", "", true, []*fileTreeNode{}},
+			}},
 			wantErr: false,
 		},
 		{
 			name: "delete /etc/file and add /var/file",
 			args: args{
-				original: rootWithEtcTreeNode,
-				updated:  rootWithEtcWithDeleteFileAndAddVarFileTreeNode,
+				original: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"etc", "", true, []*fileTreeNode{
+						{"file", "", false, nil},
+					}},
+				}},
+				updated: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"etc", "", true, []*fileTreeNode{
+						{".wh.file", "", false, nil},
+					}},
+					{"var", "", false, []*fileTreeNode{
+						{"file", "", false, nil},
+					}},
+				}},
 			},
-			want:    &fileTreeNode{"/", "", true, []*fileTreeNode{{"etc", "", true, []*fileTreeNode{}}, varWithFile}},
+			want: &fileTreeNode{"/", "", true, []*fileTreeNode{
+				{"etc", "", true, []*fileTreeNode{}},
+				{"var", "", false, []*fileTreeNode{
+					{"file", "", false, nil},
+				}},
+			}},
 			wantErr: false,
 		},
 	}
 
+	defaultOpts := getStringOpts{showLinks: true, depth: 99999}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := mergeFileTrees(tt.args.original, tt.args.updated)
@@ -128,7 +175,9 @@ func Test_mergeFileTrees(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("mergeFileTrees() got:\n%v, want:\n%v", got, tt.want)
+				t.Errorf("mergeFileTrees() got:\n%v, want:\n%v",
+					got.getString("", defaultOpts, true, false),
+					tt.want.getString("", defaultOpts, true, false))
 			}
 		})
 	}

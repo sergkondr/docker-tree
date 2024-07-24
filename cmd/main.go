@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 
 	"github.com/skondrashov/docker-tree/internal/docker"
@@ -22,6 +23,7 @@ func main() {
 			var (
 				quiet     bool
 				showLinks bool
+				depth     int
 			)
 
 			cmd := &cobra.Command{
@@ -47,11 +49,17 @@ You can also specify a directory to see the file tree relative to this directory
 						treeRoot = args[1]
 					}
 
+					depth++ // to display not only "/" with --depth == 1
+					if depth <= 1 {
+						depth = math.MaxInt
+					}
+
 					treeStrings, err := docker.GetImageTree(docker.GetTreeOpts{
 						Cli:       dockerCli,
 						ImageID:   imageID,
 						Quiet:     quiet,
 						ShowLinks: showLinks,
+						Depth:     depth,
 						TreeRoot:  treeRoot,
 					})
 					if err != nil {
@@ -64,6 +72,7 @@ You can also specify a directory to see the file tree relative to this directory
 			}
 
 			flags := cmd.Flags()
+			flags.IntVarP(&depth, "depth", "d", 0, "Show maximum depth of hierarchical trees, 0 - unlimited")
 			flags.BoolVarP(&quiet, "quiet", "q", false, "Suppress verbose output")
 			flags.BoolVarP(&showLinks, "links", "l", false, "Show symlinks destination")
 

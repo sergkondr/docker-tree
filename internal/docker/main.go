@@ -13,6 +13,7 @@ type GetTreeOpts struct {
 	ImageID   string
 	Quiet     bool
 	ShowLinks bool
+	Depth     int
 	TreeRoot  string
 }
 
@@ -36,7 +37,7 @@ func GetImageTree(opts GetTreeOpts) (string, error) {
 	}
 
 	if !opts.Quiet {
-		fmt.Fprintf(opts.Cli.Out(), "precessing image: %s\n", opts.ImageID)
+		fmt.Fprintf(opts.Cli.Out(), "processing image: %s\n", opts.ImageID)
 	}
 
 	imageReader, err := opts.Cli.Client().ImageSave(ctx, []string{opts.ImageID})
@@ -64,5 +65,10 @@ func GetImageTree(opts GetTreeOpts) (string, error) {
 		return "", fmt.Errorf("there is no such path in the image: %s", opts.TreeRoot)
 	}
 
-	return node.getString("", opts.ShowLinks, true, true), nil
+	printOptions := getStringOpts{
+		showLinks: opts.ShowLinks,
+		depth:     opts.Depth,
+	}
+
+	return node.getString("", printOptions, true, true), nil
 }

@@ -15,7 +15,8 @@ const (
 	last   = "└── "
 	link   = " -> "
 
-	delFilePrefix = ".wh."
+	whiteoutFilePrefix = ".wh."
+	whiteoutDirPrefix  = ".wh..wh..opq"
 )
 
 type fileTreeNode struct {
@@ -25,7 +26,17 @@ type fileTreeNode struct {
 	Children []*fileTreeNode
 }
 
-func (n *fileTreeNode) getString(prefix string, showLinks, isFirst, isLast bool) string {
+type getStringOpts struct {
+	showLinks bool
+	depth     int
+}
+
+func (n *fileTreeNode) getString(prefix string, opts getStringOpts, isFirst, isLast bool) string {
+	opts.depth--
+	if opts.depth == -1 {
+		return empty
+	}
+
 	passPrefix := prefix
 	currentPrefix := empty
 
@@ -45,12 +56,12 @@ func (n *fileTreeNode) getString(prefix string, showLinks, isFirst, isLast bool)
 	}
 
 	result := fmt.Sprintf("%s%s%s\n", prefix, currentPrefix, name)
-	if showLinks && n.Symlink != "" {
+	if opts.showLinks && n.Symlink != "" {
 		result = fmt.Sprintf("%s%s%s%s%s\n", prefix, currentPrefix, name, link, n.Symlink)
 	}
 
 	for i, child := range n.Children {
-		result += child.getString(passPrefix, showLinks, false, i == len(n.Children)-1)
+		result += child.getString(passPrefix, opts, false, i == len(n.Children)-1)
 	}
 
 	return result
@@ -127,8 +138,8 @@ func mergeFileTrees(original, updated *fileTreeNode) (*fileTreeNode, error) {
 			continue
 		}
 
-		if strings.HasPrefix(updatedChild.Name, delFilePrefix) {
-			updatedChild.Name = strings.TrimPrefix(updatedChild.Name, delFilePrefix)
+		if strings.HasPrefix(updatedChild.Name, whiteoutFilePrefix) {
+			updatedChild.Name = strings.TrimPrefix(updatedChild.Name, whiteoutFilePrefix)
 			if err := original.deleteNode(updatedChild); err != nil {
 				return nil, fmt.Errorf("error deleting file %s: %w", updatedChild.Name, err)
 			}

@@ -118,7 +118,10 @@ func getFileTreeFromLayer(layerReader *tar.Reader) (*fileTreeNode, error) {
 		if err != nil {
 			return nil, errNotATar
 		}
-		fileTree.addChild(header)
+
+		if !strings.HasSuffix(header.Name, whiteoutDirPrefix) {
+			fileTree.addChild(header)
+		}
 	}
 	return fileTree, nil
 }
