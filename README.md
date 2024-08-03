@@ -4,7 +4,7 @@
 [![GitHub release](https://img.shields.io/github/release/sergkondr/docker-tree.svg)](https://github.com/sergkondr/docker-tree/releases/latest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sergkondr/docker-tree)](https://goreportcard.com/report/github.com/sergkondr/docker-tree)
 [![Go](https://github.com/sergkondr/docker-tree/actions/workflows/go.yml/badge.svg)](https://github.com/sergkondr/docker-tree/actions/workflows/go.yml)
-[![CodeQL](https://github.com/sergkondr/docker-ps/actions/workflows/codeql.yml/badge.svg)](https://github.com/sergkondr/docker-ps/actions/workflows/codeql.yml)
+[![CodeQL](https://github.com/sergkondr/docker-tree/actions/workflows/codeql.yml/badge.svg)](https://github.com/sergkondr/docker-tree/actions/workflows/codeql.yml)
 
 This command shows the directory tree of a Docker image, like the 'tree' command.
 Provide the image name and an optional tag or digest to view the file structure inside the image.
