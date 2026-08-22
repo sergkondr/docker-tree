@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/docker/cli/cli/command"
@@ -35,20 +36,29 @@ var (
 )
 
 func checkImageExists(ctx context.Context, cli command.Cli, imageID string) (bool, error) {
-	images, err := cli.Client().ImageList(ctx, image.ListOptions{})
+	images, err := cli.Client().ImageList(ctx, image.ListOptions{All: true})
 	if err != nil {
 		return false, fmt.Errorf("can't list images: %w", err)
 	}
 
 	for _, img := range images {
-		for _, t := range img.RepoTags {
-			if t == imageID {
-				return true, nil
-			}
+		if imageMatches(img, imageID) {
+			return true, nil
 		}
 	}
 
 	return false, nil
+}
+
+func imageMatches(img image.Summary, imageID string) bool {
+	if imageID == "" {
+		return false
+	}
+
+	return img.ID == imageID ||
+		strings.HasPrefix(img.ID, imageID) ||
+		slices.Contains(img.RepoTags, imageID) ||
+		slices.Contains(img.RepoDigests, imageID)
 }
 
 func getLayersOrderedArrFromImage(imageReader io.ReadCloser) ([]layer, error) {
@@ -119,9 +129,7 @@ func getFileTreeFromLayer(layerReader *tar.Reader) (*fileTreeNode, error) {
 			return nil, errNotATar
 		}
 
-		if !strings.HasSuffix(header.Name, whiteoutDirPrefix) {
-			fileTree.addChild(header)
-		}
+		fileTree.addChild(header)
 	}
 	return fileTree, nil
 }

@@ -51,6 +51,10 @@ func GetImageTree(opts GetTreeOpts) (string, error) {
 		return "", fmt.Errorf("can't get layersOrderedArr: %w", err)
 	}
 
+	if len(layersOrderedArr) == 0 {
+		return "", fmt.Errorf("no layers found in image: %s", opts.ImageID)
+	}
+
 	originalLayer := layersOrderedArr[0].FileTree
 	for i := 1; i <= len(layersOrderedArr)-1; i++ {
 		updatedLayer := layersOrderedArr[i].FileTree

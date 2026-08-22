@@ -87,6 +87,7 @@ func (n *fileTreeNode) addChild(file *tar.Header) {
 		}
 
 		n.Children = append(n.Children, child)
+		n = child
 	}
 }
 
@@ -133,15 +134,26 @@ func mergeFileTrees(original, updated *fileTreeNode) (*fileTreeNode, error) {
 	}
 
 	for _, updatedChild := range updated.Children {
+		if updatedChild.Name == whiteoutDirPrefix {
+			merged.Children = make([]*fileTreeNode, 0)
+			break
+		}
+	}
+
+	for _, updatedChild := range updated.Children {
 		// to avoid "/./" in tree for some images
 		if updatedChild.Name == "." {
 			continue
 		}
 
+		if updatedChild.Name == whiteoutDirPrefix {
+			continue
+		}
+
 		if strings.HasPrefix(updatedChild.Name, whiteoutFilePrefix) {
-			updatedChild.Name = strings.TrimPrefix(updatedChild.Name, whiteoutFilePrefix)
-			if err := original.deleteNode(updatedChild); err != nil {
-				return nil, fmt.Errorf("error deleting file %s: %w", updatedChild.Name, err)
+			whiteoutName := strings.TrimPrefix(updatedChild.Name, whiteoutFilePrefix)
+			if err := merged.deleteNode(&fileTreeNode{Name: whiteoutName}); err != nil {
+				return nil, fmt.Errorf("error deleting file %s: %w", whiteoutName, err)
 			}
 			continue
 		}
@@ -152,11 +164,15 @@ func mergeFileTrees(original, updated *fileTreeNode) (*fileTreeNode, error) {
 			sort.Slice(merged.Children, func(i, j int) bool {
 				return merged.Children[i].Name < merged.Children[j].Name
 			})
+		} else if merged.Children[childIndex].IsDir != updatedChild.IsDir ||
+			merged.Children[childIndex].Symlink != updatedChild.Symlink {
+			merged.Children[childIndex] = updatedChild
 		} else {
-			_, err := mergeFileTrees(merged.Children[childIndex], updatedChild)
+			mergedChild, err := mergeFileTrees(merged.Children[childIndex], updatedChild)
 			if err != nil {
 				return nil, err
 			}
+			merged.Children[childIndex] = mergedChild
 		}
 	}
 

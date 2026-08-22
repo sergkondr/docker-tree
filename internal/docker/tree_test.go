@@ -1,9 +1,35 @@
 package docker
 
 import (
+	"archive/tar"
+	"bytes"
 	"reflect"
 	"testing"
 )
+
+func Test_getFileTreeFromLayerKeepsOpaqueWhiteout(t *testing.T) {
+	var layer bytes.Buffer
+	tarWriter := tar.NewWriter(&layer)
+	if err := tarWriter.WriteHeader(&tar.Header{
+		Name: "etc/" + whiteoutDirPrefix,
+		Mode: 0600,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tarWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := getFileTreeFromLayer(tar.NewReader(bytes.NewReader(layer.Bytes())))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	etc := got.findNode("/etc")
+	if etc == nil || etc.findChild(whiteoutDirPrefix) == -1 {
+		t.Fatalf("opaque whiteout was not preserved in the layer tree: %v", got)
+	}
+}
 
 func Test_fileTreeNode_String(t *testing.T) {
 	fileNode := fileTreeNode{"file", "", false, nil}
@@ -161,6 +187,58 @@ func Test_mergeFileTrees(t *testing.T) {
 				{"var", "", false, []*fileTreeNode{
 					{"file", "", false, nil},
 				}},
+			}},
+			wantErr: false,
+		},
+		{
+			name: "opaque whiteout deletes all files in /etc",
+			args: args{
+				original: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"etc", "", true, []*fileTreeNode{
+						{"file", "", false, nil},
+					}},
+				}},
+				updated: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"etc", "", true, []*fileTreeNode{
+						{"new-file", "", false, nil},
+						{whiteoutDirPrefix, "", false, nil},
+					}},
+				}},
+			},
+			want: &fileTreeNode{"/", "", true, []*fileTreeNode{
+				{"etc", "", true, []*fileTreeNode{
+					{"new-file", "", false, nil},
+				}},
+			}},
+			wantErr: false,
+		},
+		{
+			name: "replace directory with file",
+			args: args{
+				original: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"foo", "", true, []*fileTreeNode{{"old", "", false, nil}}},
+				}},
+				updated: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"foo", "", false, nil},
+				}},
+			},
+			want: &fileTreeNode{"/", "", true, []*fileTreeNode{
+				{"foo", "", false, nil},
+			}},
+			wantErr: false,
+		},
+		{
+			name: "replace file with directory",
+			args: args{
+				original: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"foo", "", false, nil},
+				}},
+				updated: &fileTreeNode{"/", "", true, []*fileTreeNode{
+					{"foo", "", true, []*fileTreeNode{{"new", "", false, nil}}},
+				}},
+			},
+			want: &fileTreeNode{"/", "", true, []*fileTreeNode{
+				{"foo", "", true, []*fileTreeNode{{"new", "", false, nil}}},
 			}},
 			wantErr: false,
 		},

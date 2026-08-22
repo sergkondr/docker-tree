@@ -76,7 +76,6 @@ You can also specify a directory to see the file tree relative to this directory
 			flags.BoolVarP(&quiet, "quiet", "q", false, "Suppress verbose output")
 			flags.BoolVarP(&showLinks, "links", "l", false, "Show symlinks destination")
 
-			cmd.AddCommand()
 			return cmd
 		},
 
